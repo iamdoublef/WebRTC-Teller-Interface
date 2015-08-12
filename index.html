@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Insert title here</title>
+<link rel="stylesheet" href="/util/ext-gray-all-uc.css" type="text/css"/>
+
+<style type="text/css">
+.container_right {
+	width: 34%;
+	border: 1px solid #555;
+	padding: 0 10px;
+	vertical-align: top;
+	background: #fff;
+}
+
+textarea {
+	width: 100%;
+	height: 100%;
+	overflow-y: auto;
+}
+</style>
+<script type="text/javascript" src="/util/ext-all-4.2.1-uc.js"></script>
+<script type="text/javascript" src="/util/Util.js"></script>
+<script type="text/javascript" src="/interface/Teller.js"></script>
+<script type="text/javascript" src="/interface/TellerFn.js"></script>
+<script type="text/javascript" src="/adapter.js"></script>
+<script type="text/javascript" src="/SkyRTC-client.js"></script>
+<script type="text/javascript">
+Fn={};
+Fn.serverLog =  new (function(){  
+    var c = this; 
+    c.log = c.warn = c.debug = c.info = c.trace= c.error = c.fatal = function(logInfo, jsUrl){
+    	var _logElem = document.getElementById("TellerPage.LogInfo");
+    	_logElem.value += (Util.DateUtil.getTime() + '|'　+ jsUrl + ' | ' + logInfo + '\n\n');
+    };  
+})();  
+
+//!function 清空Id为"LogInfo"的文本框
+function _clearLog()
+{
+	var _logElem = document.getElementById("TellerPage.LogInfo");
+	_logElem.value = "";
+}
+
+function _sendMsg(){
+	var _msg = document.getElementById("msgtext").value;
+	Teller.Fn.sendMsg(_msg);
+}
+
+
+// extWindow={};
+// extWindow.show = extWindow.hide = function(){};
+window.onload = function(){
+	setTimeout(function(){
+		Teller.Fn.init();
+	},1000);
+}
+
+
+
+Fn.PhoneEvent = new (function() {
+	var serverLog = null;
+	var jsUrl = "teller/huawei/PhoneDemo.js";
+	
+	this.init = function() {
+		if(!serverLog) serverLog = top.Fn.serverLog;
+		serverLog.debug('Teller.Fn.init', jsUrl);
+	}
+
+	this.msgArrived = function(msg) {
+	}
+	//柜员登录成功事件
+	this.loginSucc = function(eventInfo) {
+	}
+
+	//呼叫振铃事件
+	this.alerting = function(callNO, vtmNO) {
+		alert("lingling.....");
+	}
+	
+	// 呼叫建立事件
+	this.talking = function(callNo,vtmNo,callType) {
+	}
+
+	//柜员登录失败事件
+	this.loginFailed = function(eventInfo) {
+	}
+
+	//柜员登出成功事件
+	this.logoutSucc = function() {
+	}
+	//久不应答事件
+	this.noAnswer = function(){
+	}
+	//柜员登出失败事件
+	this.logoutFailed = function(eventInfo) {
+	}
+
+	/** 5.2 呼叫控制事件 Start *************** */
+
+	//柜员进入闲态事件
+	this.idle = function() {
+	}
+	
+	/**
+	 * 柜员进入忙态事件
+	 */
+	this.busy = function() {
+	}
+
+	//柜员进入未准备态事件
+	this.notReady = function() {
+	}
+	
+	//保持事件
+	this.hold = function(){
+	}
+	
+	//取消保持事件
+	this.unHold = function(){
+	}
+	// 呼叫挂断事件
+	this.release = function(callNo) {
+	}
+	//桌面共享开始
+	this.desktopStart = function(){
+	}
+	//桌面共享结束
+	this.desktopStop_huawei = function(){
+	}
+	//桌面共享结束  桌面共享与远程控制为不可用状态  avaya
+	this.desktopStop = function(){
+	}
+	//远程控制开始
+	this.desktopCtlStart = function(){
+	}
+	//远程控制结束
+	this.desktopCtlStop = function(){
+	}
+	
+	//静音事件
+	this.mute = function(){
+	}
+	
+	//取消静音事件
+	this.unMute = function(){
+	}
+	
+	/** Teller异常处理 ***************** */
+	this.error = function(){//错误，不可恢复
+	}
+	
+	this.exception = function(){//异常，可重试
+	}
+	
+})();
+</script>
+</head>
+<body>
+
+	
+
+	<table cellpadding="0" cellspacing="0" width="100%">
+		<tr>
+			<td class="container_left">
+				<table width="100%" border="0" cellpadding="0" cellspacing="0">
+						<tr>
+						<td class="tab_opr_td">
+							<div class="tab_opr_btn_wrap nomargin">
+								<table width="100%" border="0" cellpadding="0" cellspacing="0">
+									<tr>
+<!-- 										<td ><input type="button" value="init" onClick="Teller.Fn.init();"  /></td> -->
+										<td ><input type="button" value="login" onClick="Teller.Fn.login('10.8.77.77:8501','1001',1,1);"  /></td>
+										<td ><input type="button" value="call" onClick="Teller.Fn.call();"  /></td>
+										
+										<td ><input type="button" value="answer" onClick="Teller.Fn.answer('201','test');"  /></td>
+										
+										<td>&nbsp;</td>
+									</tr>
+									<tr>
+										<td ><input type="button" value="release" onClick="Teller.Fn.release();"  /></td>
+<!-- 										<td ><input type="button" value="desktopCtlStart" onClick="Desktop.desktopCtlStart();"  /></td> -->
+										<td ><input type="button" value="sendmsg" onClick="_sendMsg();"  /></td>
+										
+									</tr>
+									<tr>
+										<td colspan=3>
+											<textarea id="msgtext" rows="3"></textarea>
+										</td>
+									</tr>
+								</table>
+							</div>
+						</td>
+					</tr>
+				</table>
+			</td>
+			<td class="container_right">
+				<div class="log_top">
+					<p class="log_titil">LOG</p>
+					<p class="btn log_clear">
+						<input type="button" value="清空" onclick="_clearLog();"
+							ID="TellerPage.ClearLoglist" />
+					</p>
+					<p class="clear"></p>
+				</div>
+				<div class="log_mian">
+					<textarea id="TellerPage.LogInfo" rows="47"></textarea>
+				</div>
+			</td>
+		</tr>
+	</table>
+</body>
+</html>
