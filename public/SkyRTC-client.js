@@ -5,6 +5,7 @@ var SkyRTC = function() {
     var nativeRTCIceCandidate = (window.mozRTCIceCandidate || window.RTCIceCandidate);
     var nativeRTCSessionDescription = (window.mozRTCSessionDescription || window.RTCSessionDescription); // order is very important: "RTCSessionDescription" defined in Nighly but useless
     var moz = !!navigator.mozGetUserMedia;
+    var Logger = window.console;
     var iceServer = {
         "iceServers": [{
             "url": "stun:stun.l.google.com:19302"
@@ -115,8 +116,8 @@ var SkyRTC = function() {
                 that.closePeerConnection(pcs[i]);
             }
             that.peerConnections = [];
-            that.dataChannels = {};
-            that.fileChannels = {};
+//            that.dataChannels = {};
+//            that.fileChannels = {};
             that.connections = [];
             that.fileData = {};
             that.emit('socket_closed', socket);
@@ -129,6 +130,7 @@ var SkyRTC = function() {
             that.me = data.you;
             that.emit("get_peers", that.connections);
             that.emit('connected', socket);
+            that.emit("ready");
         });
 
         this.on("_ice_candidate", function(data) {
@@ -154,14 +156,24 @@ var SkyRTC = function() {
         });
 
         this.on('_remove_peer', function(data) {
-            var sendId;
-            that.closePeerConnection(that.peerConnections[data.socketId]);
-            delete that.peerConnections[data.socketId];
-            delete that.dataChannels[data.socketId];
-            for (sendId in that.fileChannels[data.socketId]) {
-                that.emit("send_file_error", new Error("Connection has been closed"), data.socketId, sendId, that.fileChannels[data.socketId][sendId].file);
-            }
-            delete that.fileChannels[data.socketId];
+//            var sendId;
+            
+        	var i, cs = that.connections;
+            for (i = cs.length; i--;) {
+            	if(cs[i] != that.me){
+            		that.closePeerConnection(that.peerConnections[cs[i]]);
+                    delete that.peerConnections[cs[i]];
+                    delete that.connections[i];
+            	}
+            };
+            
+//            that.closePeerConnection(that.peerConnections[data.socketId]);
+//            delete that.peerConnections[data.socketId];
+//            delete that.dataChannels[data.socketId];
+//            for (sendId in that.fileChannels[data.socketId]) {
+//                that.emit("send_file_error", new Error("Connection has been closed"), data.socketId, sendId, that.fileChannels[data.socketId][sendId].file);
+//            }
+//            delete that.fileChannels[data.socketId];
             that.emit("remove_peer", data.socketId);
         });
 
@@ -174,14 +186,35 @@ var SkyRTC = function() {
             that.receiveAnswer(data.socketId, data.sdp);
             that.emit('get_answer', data);
         });
+        
+        this.on('_alerting', function(data) {
+            that.emit('alerting', data.socketId);
+        });
 
         this.on('ready', function() {
             that.createPeerConnections();
             that.addStreams();
-            that.addDataChannels();
+//            that.addDataChannels();
             that.sendOffers();
         });
+        this.on('_leaveSuccess', function(data) {
+            that.emit('rlease', data.socketId);
+        })
+        
+        this.on('_msg_arrive', function(data) {
+            that.emit('msgArrive', data.socketId, data.msg);
+        })
     };
+    
+    //呼叫
+    skyrtc.prototype.call = function(callNo){
+    	 var that = this;
+    	 that.socket.send(JSON.stringify({
+             "eventName": "__call",
+             "data": {
+             }
+         }));
+    }
     
     //加入会议
     skyrtc.prototype.join = function(room){
@@ -203,6 +236,17 @@ var SkyRTC = function() {
              "data": {}
          }));
     }
+    
+  //发送消息
+    skyrtc.prototype.sendMsg = function(msg){
+    	 var that = this;
+    	 that.socket.send(JSON.stringify({
+             "eventName": "__send_msg",
+             "data": {
+            	 "msg":msg
+             }
+         }));
+    }
 
 
     /*************************流处理部分*******************************/
@@ -221,9 +265,9 @@ var SkyRTC = function() {
                     that.localMediaStream = stream;
                     that.initializedStreams++;
                     that.emit("stream_created", stream);
-                    if (that.initializedStreams === that.numStreams) {
-                        that.emit("ready");
-                    }
+//                    if (that.initializedStreams === that.numStreams) {
+//                        that.emit("ready");
+//                    }
                 },
                 function(error) {
                     that.emit("stream_create_error", error);
@@ -243,17 +287,17 @@ var SkyRTC = function() {
     };
 
     //将流绑定到video标签上用于输出
-    skyrtc.prototype.attachStream = function(stream, domId) {
-        var element = document.getElementById(domId);
-        if (navigator.mozGetUserMedia) {
-            element.mozSrcObject = stream;
-            element.play();
-        } else {
+    skyrtc.prototype.attachStream = function(element, stream) {
+//        var element = document.getElementById(domId);
+//        if (navigator.mozGetUserMedia) {
+//            element.mozSrcObject = stream;
+//            element.play();
+//        } else {
 //            element.src = webkitURL.createObjectURL(stream);
-        	console.log("attachStream:domid"+domId);
+        	console.log("attachStream:domid");
             attachMediaStream(element, stream);
 //            element.play();
-        }
+//        }
 //        element.src = webkitURL.createObjectURL(stream);
 //        attachMediaStream(document.getElementById(domId), stream); 
     };
@@ -356,7 +400,7 @@ var SkyRTC = function() {
                     }
                 });
                 that.socket.send(msg);
-                console.log("onicecandidate:" + msg)
+                console.log(socketId+"；onicecandidate:" + msg)
             }
             that.emit("pc_get_ice_candidate", evt.candidate, socketId, pc);
         };
@@ -369,102 +413,19 @@ var SkyRTC = function() {
             that.emit('pc_add_stream', evt.stream, socketId, pc);
         };
 
-        pc.ondatachannel = function(evt) {
-            that.addDataChannel(socketId, evt.channel);
-            that.emit('pc_add_data_channel', evt.channel, socketId, pc);
-        };
+//        pc.ondatachannel = function(evt) {
+//            that.addDataChannel(socketId, evt.channel);
+//            that.emit('pc_add_data_channel', evt.channel, socketId, pc);
+//        };
         return pc;
     };
 
     //关闭PeerConnection连接
     skyrtc.prototype.closePeerConnection = function(pc) {
         if (!pc) return;
+        Logger.info('closePeerConnection');
         pc.close();
     };
-
-
-    /***********************数据通道连接部分*****************************/
-
-
-    //消息广播
-    skyrtc.prototype.broadcast = function(message) {
-        var socketId;
-        for (socketId in this.dataChannels) {
-            this.sendMessage(message, socketId);
-        }
-    };
-    
-    //发送消息方法
-    skyrtc.prototype.sendMessage = function(message, socketId) {
-        if (this.dataChannels[socketId].readyState.toLowerCase() === 'open') {
-            this.dataChannels[socketId].send(JSON.stringify({
-                type: "__msg",
-                data: message
-            }));
-        }
-    };
-
-    //对所有的PeerConnections创建Data channel
-    skyrtc.prototype.addDataChannels = function() {
-        var connection;
-        for (connection in this.peerConnections) {
-            this.createDataChannel(connection);
-        }
-    };
-
-    //对某一个PeerConnection创建Data channel
-    skyrtc.prototype.createDataChannel = function(socketId, label) {
-        var pc, key, channel;
-        pc = this.peerConnections[socketId];
-
-        if (!socketId) {
-            this.emit("data_channel_create_error", socketId, new Error("attempt to create data channel without socket id"));
-        }
-
-        if (!(pc instanceof PeerConnection)) {
-            this.emit("data_channel_create_error", socketId, new Error("attempt to create data channel without peerConnection"));
-        }
-        try {
-            channel = pc.createDataChannel(label);
-        } catch (error) {
-            this.emit("data_channel_create_error", socketId, error);
-        }
-
-        return this.addDataChannel(socketId, channel);
-    };
-
-    //为Data channel绑定相应的事件回调函数
-    skyrtc.prototype.addDataChannel = function(socketId, channel) {
-        var that = this;
-        channel.onopen = function() {
-            that.emit('data_channel_opened', channel, socketId);
-        };
-
-        channel.onclose = function(event) {
-            delete that.dataChannels[socketId];
-            that.emit('data_channel_closed', channel, socketId);
-        };
-
-        channel.onmessage = function(message) {
-            var json;
-            json = JSON.parse(message.data);
-            if (json.type === '__file') {
-                /*that.receiveFileChunk(json);*/
-                that.parseFilePacket(json, socketId);
-            } else {
-                that.emit('data_channel_message', channel, socketId, json.data);
-            }
-        };
-
-        channel.onerror = function(err) {
-            that.emit('data_channel_error', channel, socketId, err);
-        };
-
-        this.dataChannels[socketId] = channel;
-        return channel;
-    };
-
-
 
 
     return new skyrtc();
